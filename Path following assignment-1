@@ -1,0 +1,37 @@
+function sysCall_init()
+   path=sim.getObject("/Path")
+   pathData=sim.unpackDoubleTable(sim.readCustomDataBlock(path,'PATH'))
+   local m=Matrix(math.floor(#pathData/7),7,pathData)
+   pathPositions=m:slice(1,1,m:rows(),3):data()
+   pathQuaternions=m:slice(1,4,m:rows(),7):data()
+   quadcopter=sim.getObject("/Quadcopter")
+
+   pathLengths,totalLength=sim.getPathLengths(pathPositions,3)
+   v=0.1
+   corout=coroutine.create(coroutineMain)
+end
+function sysCall_actuation()
+   if coroutine.status(corout)~='dead' then
+       local ok,errorMsg=coroutine.resume(corout)
+       if errorMsg then
+          error(debug.traceback(corout,errorMsg),2)
+       end
+    end
+end
+function sysCall_cleanup()
+-- do some clean-up here
+end
+function coroutineMain()
+    while true do
+        p = sim.getSimulationTime()*v
+        p=p % totalLength
+        local h=quadcopter
+        local pos=sim.getPathInterpolatedConfig(pathPositions,pathLengths,p)
+        local quat=sim.getPathInterpolatedConfig(pathQuaternions,pathLengths,p,nil,{2,2,2,2})
+        sim.setObjectPosition(h,path,pos)
+        sim.setObjectQuaternion(h,path,quat)
+    end
+end
+function setPathPosition(p)
+end
+-- See the user manual or the available code snippets for additional callback functions and detail
